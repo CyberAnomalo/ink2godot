@@ -1,0 +1,15 @@
+[remap]
+
+importer="gaussian.splat.importer"
+importer_version=5
+type="Resource"
+uid="uid://d2afp6n5vaxky"
+path="res://.godot/imported/bone_01.ply-026085e31f3ca3b44a3d33f3258ec482.res"
+
+[deps]
+
+source_file="res://assets/courier/bone_01.ply"
+dest_files=["res://.godot/imported/bone_01.ply-026085e31f3ca3b44a3d33f3258ec482.res"]
+
+[params]
+

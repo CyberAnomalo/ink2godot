@@ -1,0 +1,87 @@
+{
+  "source": "ink-studio",
+  "scene": {
+    "id": "rehearsal",
+    "name": "The Rehearsal",
+    "blurb": "Every ready clip in turn: squash and stretch, a cage, the reaction fields. Tap for the next",
+    "seed": 0
+  },
+  "count": 15605,
+  "centroid": [
+    -0.005693285585295271,
+    0.816989884855693,
+    -0.03850390342684437
+  ],
+  "aabb": {
+    "min": [
+      -4.474999904632568,
+      0,
+      -4.347499847412109
+    ],
+    "max": [
+      4,
+      3.0661537647247314,
+      4.265500068664551
+    ]
+  },
+  "ink": {
+    "radius": 5.4,
+    "bg": [
+      7,
+      8,
+      11
+    ],
+    "palName": "Rehearsal",
+    "palette": [
+      460811,
+      1382172,
+      2764342,
+      4672855,
+      7173244,
+      10133660,
+      2758704,
+      5909578,
+      10111578,
+      14186602,
+      16037004,
+      16770756,
+      16777215,
+      1709088,
+      6989488,
+      13627120
+    ],
+    "dither": 0.25,
+    "fog": {
+      "c": 0,
+      "start": 1,
+      "max": 0
+    },
+    "outline": {
+      "c": 0,
+      "edge": 0
+    },
+    "cam": {
+      "target": [
+        0,
+        1.55,
+        0
+      ],
+      "dist": 8.6,
+      "pitch": 0.17,
+      "yaw": 0.5,
+      "sway": 0.25
+    }
+  },
+  "plyBytes": 874310,
+  "sigma": {
+    "min": 0.013799999833207423,
+    "max": 0.04500000058362881,
+    "worstAspect": 1.5333332743913095
+  },
+  "alpha": {
+    "min": 0.999,
+    "max": 0.999
+  },
+  "flattened": 0,
+  "paletteUsed": 13
+}

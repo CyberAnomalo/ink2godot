@@ -1,0 +1,33 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Resource" path="res://assets/dioramas/watcher.ply" id="1_gauss"]
+[ext_resource type="Script" path="res://addons/gdgs/runtime/compositor/gaussian_compositor_effect.gd" id="2_fx"]
+[ext_resource type="Script" path="res://main.gd" id="3_main"]
+[ext_resource type="Script" path="res://addons/gdgs/runtime/nodes/gaussian_splat_node.gd" id="4_node"]
+
+[sub_resource type="CompositorEffect" id="CompositorEffect_gdgs"]
+script = ExtResource("2_fx")
+
+[sub_resource type="Compositor" id="Compositor_gdgs"]
+compositor_effects = Array[CompositorEffect]([SubResource("CompositorEffect_gdgs")])
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 1
+background_color = Color(0.027, 0.031, 0.043, 1)
+
+[node name="Main" type="Node3D"]
+script = ExtResource("3_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_main")
+compositor = SubResource("Compositor_gdgs")
+
+[node name="Splat" type="VisualInstance3D" parent="."]
+script = ExtResource("4_node")
+gaussian = ExtResource("1_gauss")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+current = true
+fov = 45.0
+near = 0.05
+far = 500.0

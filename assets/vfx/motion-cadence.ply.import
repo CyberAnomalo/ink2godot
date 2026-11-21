@@ -1,0 +1,15 @@
+[remap]
+
+importer="gaussian.splat.importer"
+importer_version=5
+type="Resource"
+uid="uid://by3hqec310i2u"
+path="res://.godot/imported/motion-cadence.ply-b7732c4d9ce49796d6d78f5d57139a1d.res"
+
+[deps]
+
+source_file="res://assets/vfx/motion-cadence.ply"
+dest_files=["res://.godot/imported/motion-cadence.ply-b7732c4d9ce49796d6d78f5d57139a1d.res"]
+
+[params]
+

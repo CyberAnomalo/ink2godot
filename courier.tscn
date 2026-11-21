@@ -1,0 +1,27 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://addons/gdgs/runtime/compositor/gaussian_compositor_effect.gd" id="1_fx"]
+[ext_resource type="Script" path="res://courier.gd" id="2_main"]
+
+[sub_resource type="CompositorEffect" id="CompositorEffect_gdgs"]
+script = ExtResource("1_fx")
+
+[sub_resource type="Compositor" id="Compositor_gdgs"]
+compositor_effects = Array[CompositorEffect]([SubResource("CompositorEffect_gdgs")])
+
+[sub_resource type="Environment" id="Environment_courier"]
+background_mode = 1
+background_color = Color(0.055, 0.059, 0.075, 1)
+
+[node name="Courier" type="Node3D"]
+script = ExtResource("2_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_courier")
+compositor = SubResource("Compositor_gdgs")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+current = true
+fov = 42.0
+near = 0.05
+far = 200.0

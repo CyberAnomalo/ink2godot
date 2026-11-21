@@ -1,0 +1,15 @@
+[remap]
+
+importer="gaussian.splat.importer"
+importer_version=5
+type="Resource"
+uid="uid://cu1ruuanytd1v"
+path="res://.godot/imported/idol.ply-189c62f6099a9b1e170663f76daca6ae.res"
+
+[deps]
+
+source_file="res://assets/dioramas/idol.ply"
+dest_files=["res://.godot/imported/idol.ply-189c62f6099a9b1e170663f76daca6ae.res"]
+
+[params]
+

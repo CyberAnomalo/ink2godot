@@ -1,0 +1,18 @@
+* text=auto eol=lf
+
+# 二进制资产：绝不能做行尾转换
+*.ply binary
+*.sog binary
+*.png binary
+*.res binary
+*.wav binary
+
+# Godot 资源文件是文本，要入库（保证场景引用与 uid 稳定）
+*.uid text eol=lf
+*.tscn text eol=lf
+*.tres text eol=lf
+*.godot text eol=lf
+*.gd text eol=lf
+*.gdshader text eol=lf
+*.glsl text eol=lf
+*.md text eol=lf

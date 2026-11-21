@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://d22brq4jrtpef"
+path="res://.godot/imported/pixel_look.glsl-1567889694ac5b7ff6e6490353c4b5f7.res"
+
+[deps]
+
+source_file="res://addons/inkpixel/shaders/pixel_look.glsl"
+dest_files=["res://.godot/imported/pixel_look.glsl-1567889694ac5b7ff6e6490353c4b5f7.res"]
+
+[params]
+

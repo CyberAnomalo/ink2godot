@@ -1,0 +1,15 @@
+[remap]
+
+importer="gaussian.splat.importer"
+importer_version=5
+type="Resource"
+uid="uid://b6sxrttpkaqpg"
+path="res://.godot/imported/stuff.ply-4b316dd83754a0c97891392c7c1bde6c.res"
+
+[deps]
+
+source_file="res://assets/dioramas/stuff.ply"
+dest_files=["res://.godot/imported/stuff.ply-4b316dd83754a0c97891392c7c1bde6c.res"]
+
+[params]
+

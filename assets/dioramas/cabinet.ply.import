@@ -1,0 +1,15 @@
+[remap]
+
+importer="gaussian.splat.importer"
+importer_version=5
+type="Resource"
+uid="uid://dxv8jtin50ahx"
+path="res://.godot/imported/cabinet.ply-4e2acc3a010297932a4c07981fa89581.res"
+
+[deps]
+
+source_file="res://assets/dioramas/cabinet.ply"
+dest_files=["res://.godot/imported/cabinet.ply-4e2acc3a010297932a4c07981fa89581.res"]
+
+[params]
+

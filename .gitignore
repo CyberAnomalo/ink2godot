@@ -1,0 +1,10 @@
+# Godot 导入缓存（400+ MB，下次打开工程自动重建）
+.godot/
+export/
+*.translation
+
+# 实验截图：--capture 随时可重跑
+artifacts/
+
+Thumbs.db
+.DS_Store
