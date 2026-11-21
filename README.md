@@ -5,6 +5,8 @@ Godot 4 工程，用来渲染 ink-studio 烘焙出来的像素风高斯 splat。
 资产由兄弟仓库 [`../art-pipeline`](../art-pipeline) 产出：
 **ink-studio 只做离线美术烘焙，游戏本身完全由 Godot 渲染**，不用它的 WebGL 渲染器。
 
+> **新人先读 [`ONBOARDING.md`](ONBOARDING.md)**，然后 `./setup.ps1` —— 实测 54 秒从零到出图。
+
 ## 管线
 
 ```
