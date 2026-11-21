@@ -115,7 +115,9 @@ func _capture_run() -> void:
 			await get_tree().process_frame
 		await RenderingServer.frame_post_draw
 		var img := get_viewport().get_texture().get_image()
-		var out := ProjectSettings.globalize_path("res://shot_v%d.png" % i)
+		var dir := ProjectSettings.globalize_path("res://artifacts")
+		DirAccess.make_dir_recursive_absolute(dir)
+		var out := dir.path_join("shot_v%d.png" % i)
 		img.save_png(out)
 		images.append(img)
 		print("[vfx] 第 %d 帧 -> %s  (TIME=%.2fs)" % [i, out, Time.get_ticks_msec() / 1000.0])

@@ -58,7 +58,10 @@ func _capture() -> void:
 		await get_tree().process_frame
 	await RenderingServer.frame_post_draw
 	var image := get_viewport().get_texture().get_image()
-	var out := ProjectSettings.globalize_path("res://shot.png")
+	# 抓图统一放进 artifacts/（已 gitignore），不污染工程根目录
+	var dir := ProjectSettings.globalize_path("res://artifacts")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var out := dir.path_join("shot.png")
 	var err := image.save_png(out)
 	print("[ink2godot] capture %s -> %s (%dx%d)" % [err, out, image.get_width(), image.get_height()])
 	get_tree().quit()

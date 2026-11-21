@@ -6,7 +6,7 @@
 D:/GithubSoftware/GameDev/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64.exe --path D:/GithubSoftware/GameDev/ink2godot
 ```
 
-带自动截图（渲染 30 帧后存 `shot.png` 并退出）：
+带自动截图（渲染 30 帧后存 `artifacts/shot.png` 并退出）：
 
 ```
 .../Godot_v4.7.2-stable_mono_win64.exe --path D:/GithubSoftware/GameDev/ink2godot -- --capture
@@ -270,7 +270,9 @@ rendering/raster/alpha_cutoff=0.1     # ≈2.13σ 盘半径，实测无露缝
 & D:/GithubSoftware/GameDev/art-pipeline/overview-sheet.ps1
 ```
 
-产物：`overview_<id>.png`（七张）+ `overview_sheet.png`（4x2 总览表）。
+产物：`artifacts/overview_<id>.png`（七张）+ `overview_sheet.png`（4x2 总览表）。
+
+所有抓图都落在 `artifacts/`（已 gitignore），不会污染工程根目录。
 
 ## 相机：fov 是 38° 不是 45°
 
