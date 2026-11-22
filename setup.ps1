@@ -221,10 +221,13 @@ if ($WithBaker) {
     }
     if (Test-Path $pipeline) {
         Ok "art-pipeline: $pipeline"
-        try {
-            $ink = (& node (Join-Path $pipeline 'find-ink.js') 2>&1 | Out-String).Trim()
+        # node 的退出码不会抛异常，必须看 $LASTEXITCODE（Run 已经把它包好了）
+        $ink = $null
+        $rInk = Run 'node' @((Join-Path $pipeline 'find-ink.js'))
+        if ($rInk.Code -eq 0) {
+            $ink = $rInk.Text.Trim()
             Ok "ink-studio: $ink"
-        } catch {
+        } else {
             Warn '找不到 ink-studio 仓库'
             Say @'
         它是私有仓库，需要向项目负责人申请读权限，然后：
@@ -234,11 +237,11 @@ if ($WithBaker) {
         不安装也不影响看图 —— 仓库里已经带了导出的资产。
 '@
         }
-        if (Test-Path (Join-Path $pipeline 'inkstudio2ply.js') -and (Test-Path $ink)) {
+        if ((Test-Path (Join-Path $pipeline 'inkstudio2ply.js')) -and $ink -and (Test-Path $ink)) {
             $tmp = Join-Path $env:TEMP 'ink-bake-smoke.ply'
             $r = Run 'node' @((Join-Path $pipeline 'inkstudio2ply.js'), '--scene', 'rehearsal', '--out', $tmp)
             if ($r.Code -eq 0) { Ok '烘焙冒烟（rehearsal）通过' }
-            else { Warn "烘焙冒烟失败：$($r.Text)" }
+            else { Warn "烘焙冒烟失败：$($r.Text.Trim())" }
             Remove-Item $tmp -Force -ErrorAction SilentlyContinue
         }
     }
@@ -256,3 +259,7 @@ Say '  抓图（--headless 出不了图，必须开窗口）：'
 Say "    ... res://main.tscn -- --capture     # -> artifacts/shot.png"
 Say ''
 Say "  工程内详细命令见 README-RUN.md，管线原理见 ../art-pipeline/SPEC-inkstudio-to-godot-ply.md"
+
+# 显式退出 0：否则 PowerShell 会拿脚本里最后一个原生命令的退出码当脚本退出码，
+# 比如 ink-studio 探测失败会让整个引导看起来“失败”。
+exit 0

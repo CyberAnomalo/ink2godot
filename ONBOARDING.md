@@ -14,13 +14,17 @@
 ## 路线 A：跑起来（1 分钟）
 
 ```powershell
-git clone <ink2godot 仓库地址> ink2godot
+git clone https://github.com/CyberAnomalo/ink2godot.git
 cd ink2godot
 ./setup.ps1
 ```
 
-脚本会依次检查 git、定位 Godot、校验资产、必要时重建导入缓存（约 52 秒 / 222 MB），
-最后**真渲染一张图**确认显卡链路通。实测从零到出图 **53.8 秒**。
+脚本会依次检查 git、定位 Godot、校验资产、必要时重建导入缓存（约 26—52 秒 / 222 MB），
+最后**真渲染一张图**确认显卡链路通。实测从零到出图 **25—55 秒**。
+
+> 首次导入偶尔会崩（Godot 导完 18 个 splat 后在收尾阶段访问违例 `0xC0000005`，
+> 实测三次撞一次），但资产其实已导完。`setup.ps1` 会重试最多 3 次，并以 `.res` 落盘数量
+> （≥18）加冒烟渲染作为真正的验收标准 —— **不要只看导入进程的退出码**。
 
 Godot 不装也行，用 portable 版：
 
@@ -72,10 +76,10 @@ cd ../art-pipeline && ./overview-sheet.ps1
 git clone <ink-studio 私有地址> ../shapeshift-labs-ink-studio
 git -C ../shapeshift-labs-ink-studio checkout 1350b4f    # commit 见 art-pipeline/VERSIONS.md
 
-# 2. 导出器仓库，放在同级
-git clone <art-pipeline 仓库地址> ../art-pipeline
+# 2. 导出器仓库：可以由 setup.ps1 自动拉（需 gh 已登录），或手动 clone
+git clone https://github.com/CyberAnomalo/art-pipeline.git ../art-pipeline
 
-# 3. 验证
+# 3. 验证（缺 art-pipeline 时会自己试 gh repo clone）
 cd ../ink2godot && ./setup.ps1 -WithBaker
 ```
 
