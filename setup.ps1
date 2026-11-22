@@ -36,6 +36,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $here = $PSScriptRoot
 $expectedMajor = 4.7   # 与 project.godot 的 config/features 保持一致
+$BakerRepo = 'CyberAnomalo/art-pipeline'   # -WithBaker 缺兄弟目录时自动拉这个
 
 function Say($msg) { Write-Host $msg }
 function Step($n, $msg) { Write-Host ""; Write-Host "[$n] $msg" -ForegroundColor Cyan }
@@ -130,12 +131,40 @@ if ((Test-Path $cache) -and -not $Force) {
 } else {
     Say '    重建中，大约 1 分钟、约 220 MB……'
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $r = Run $godotExe @('--headless', '--path', $here, '--import')
-    if ($r.Code -ne 0) { Die "导入失败（退出码 $($r.Code)）：`n$($r.Text)" }
+    # Godot 首次批量导入 18 个 splat 时偶尔会在收尾阶段崩溃（0xC0000005 访问违例），
+    # 而资产其实已经导完。实测空环境三次里崩一次，所以重试而不是直接判死。
+    $ok = $false
+    for ($attempt = 1; $attempt -le 3; $attempt++) {
+        $r = Run $godotExe @('--headless', '--path', $here, '--import')
+        if ($r.Code -eq 0) { $ok = $true; break }
+        $hex = '0x{0:X8}' -f ([uint32]$r.Code)
+        if ($attempt -lt 3) {
+            Warn "导入进程退出码 $hex"
+            if ($attempt -eq 2) {
+                Say '    清空缓存重来……'
+                Remove-Item $cache -Recurse -Force -ErrorAction SilentlyContinue
+            } else {
+                Say '    重试（资产可能已导完，只差收尾）……'
+            }
+        }
+    }
+    $res = @(Get-ChildItem (Join-Path $cache 'imported') -File -Filter '*.res' -ErrorAction SilentlyContinue)
     $ready = @($r.Text -split "`n" | Where-Object { $_ -match 'gaussians ready' })
+    if (-not $ok) {
+        $errs = @($r.Text -split "`n" | Where-Object { $_ -match 'ERROR|SCRIPT ERROR' })
+        if ($res.Count -lt 18) {
+            Die @"
+导入重试 3 次仍失败，只生成了 $($res.Count) 个 .res（应 ≥18）。
+$($errs | Select-Object -First 8 | ForEach-Object { "        " + $_.Trim() } | Out-String)
+        试清除缓存后重试： ./setup.ps1 -Force
+"@
+        }
+        Warn "导入进程崩了，但 $($res.Count) 个 .res 已就位，继续用冒烟测试验证"
+    }
     $size = (Get-ChildItem $cache -Recurse -File -ErrorAction SilentlyContinue |
         Measure-Object Length -Sum).Sum
-    Ok ("{0:N1}s，{1:N0} MB，{2} 个 splat 资产就绪" -f $sw.Elapsed.TotalSeconds, ($size / 1MB), $ready.Count)
+    Ok ("{0:N1}s，{1:N0} MB，{2} 个 .res，{3} 个 splat 资产就绪" -f `
+        $sw.Elapsed.TotalSeconds, ($size / 1MB), $res.Count, $ready.Count)
 }
 
 # ---------------------------------------------------------------- 4. 冒烟测试
@@ -151,9 +180,9 @@ if ($SkipSmoke) {
         'res://overview.tscn', '--', '--capture', '--only=rehearsal'
     )
     if ($r.Code -ne 0) {
-        Warn "渲染失败（退出码 $($r.Code)）"
-        Say ($r.Text -split "`n" | Where-Object { $_ -match 'ERROR|Vulkan|driver' } |
-                Select-Object -First 6 | ForEach-Object { '        ' + $_.Trim() })
+        $errs = @($r.Text -split "`n" | Where-Object { $_ -match 'ERROR|Vulkan|driver' })
+        Warn "渲染失败（退出码 $('0x{0:X8}' -f ([uint32]$r.Code))）"
+        ($errs | Select-Object -First 6) | ForEach-Object { Say ('        ' + $_.Trim()) }
         Die '多数是显卡/驱动问题，或无窗口环境。可先用 -SkipSmoke 跳过。'
     }
     if (-not (Test-Path $shot)) { Die "渲染进程正常退出，但没有出图：$shot" }
@@ -178,9 +207,19 @@ if ($WithBaker) {
 
     $pipeline = Join-Path (Split-Path $here -Parent) 'art-pipeline'
     if (-not (Test-Path $pipeline)) {
-        Warn "缺少兄弟目录 art-pipeline: $pipeline"
-        Say '        这是导出器仓库，单独 clone 到同级即可。'
-    } else {
+        # 同级没有就试着自己拉，省掉新人手抄一次
+        if (Get-Command gh -ErrorAction SilentlyContinue) {
+            Say '    同级缺少 art-pipeline，尝试 gh repo clone ……'
+            $r = Run 'gh' @('repo', 'clone', $BakerRepo, $pipeline)
+            if ($r.Code -eq 0) { Ok "已克隆到 $pipeline" }
+            else { Warn "自动克隆失败：$($r.Text.Trim())" }
+        }
+        if (-not (Test-Path $pipeline)) {
+            Warn "缺少兄弟目录 art-pipeline: $pipeline"
+            Say "        git clone https://github.com/$BakerRepo.git `"$pipeline`""
+        }
+    }
+    if (Test-Path $pipeline) {
         Ok "art-pipeline: $pipeline"
         try {
             $ink = (& node (Join-Path $pipeline 'find-ink.js') 2>&1 | Out-String).Trim()
