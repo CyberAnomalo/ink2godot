@@ -1,87 +1,170 @@
 # ink2godot
 
-Godot 4 工程，用来渲染 ink-studio 烘焙出来的像素风高斯 splat。
+**Rendering pixel-art Gaussian splats in Godot 4 — with no custom engine build, no C#, and no CPU per-frame uploads.**
 
-资产由兄弟仓库 [`../art-pipeline`](../art-pipeline) 产出：
-**ink-studio 只做离线美术烘焙，游戏本身完全由 Godot 渲染**，不用它的 WebGL 渲染器。
+[中文](README.zh-CN.md) · [Onboarding](ONBOARDING.md) · [Run commands](README-RUN.md) · [Vendor patches](VENDOR-PATCHES.md)
 
-> **新人先读 [`ONBOARDING.md`](ONBOARDING.md)**，然后 `./setup.ps1` —— 实测 54 秒从零到出图。
+---
 
-## 管线
+## What this is
+
+A Godot 4.7 project that renders scenes baked by [ink-studio](https://github.com/siliconjungle/shapeshift-labs-ink-studio)
+— an SDF sculpting / Gaussian-splat art tool — as **pixel art**.
+
+ink-studio only ever runs offline as an art baker. Everything you see is rendered by Godot:
+no WebGL, no browser, no ink-studio runtime.
+
+It is a **rendering pipeline proof**, not a game. Seven dioramas, one rigged character and one
+VFX scene, each verified by automated pixel tests rather than by eye.
+
+<p align="center"><i>441,648 splats across seven dioramas · 18 assets · 25.7 MB</i></p>
+
+## Why this exists
+
+Two real gaps, both filled here:
+
+| Gap | What this repo does |
+|---|---|
+| Godot has **no native Gaussian splat renderer** | Uses [GDGS](https://github.com/ReconWorldLab/godot-gaussian-splatting) (MIT), vendored and patched |
+| Off-the-shelf splat renderers produce **smooth gradients, not pixel art** | Adds a flat-disc splat pass + palette-quantisation post effect |
+
+GDGS gives you correct splat projection and sorting. It does not give you hard-edged discs,
+palette constraint, or ordered dither — so those are implemented here, in a vendored shader patch
+plus one small addon (`addons/inkpixel`).
+
+## How it works
 
 ```
-ink-studio 场景 (JS)
-      │  ../art-pipeline/inkstudio2ply{,-boned}.js
+ink-studio scene (JS)
+      │  ../art-pipeline/inkstudio2ply.js
       ▼
-Gaussian .ply (14 或 19 个 float32/顶点)  +  sidecar .json
-      │  Godot 导入 → GDGS 转成 60 浮点/240 字节 GPU 布局
+Gaussian .ply  (14 or 19 float32 per splat)  +  JSON sidecar
+      │  Godot import → GDGS converts to its 60-float GPU layout
       ▼
-GDGS addon（Raster 后端，已打补丁，见 VENDOR-PATCHES.md）
-      │  平色硬边盘，去掉高斯衰减
+GDGS addon, Raster backend  (patched: hard-edged discs, per-splat VFX animation)
+      │
       ▼
-addons/inkpixel  像素风后处理（块化 → 调色板量化 → 投影抖动 → 可选描边）
+addons/inkpixel — CompositorEffect, POST_TRANSPARENT
+      ├─ block average (chunky pixels, 3×3 default)
+      ├─ palette constraint dither (ink-studio's own algorithm, not naive nearest-match)
+      └─ optional luminance-based outline
       ▼
-像素画
+pixel art
 ```
 
-## 跑起来
+The exporter emits a minimal binary-little-endian PLY (no list properties), so GDGS's decoder
+accepts it directly. Colour is written as `f_dc` in sRGB space; the five VFX animation floats ride
+in unused `f_rest_*` slots, which costs no buffer-layout change.
+
+## Quick start
+
+Requires **Godot 4.7.x** (portable build is fine). Windows scripts (PowerShell).
 
 ```powershell
-$GODOT = "D:/GithubSoftware/GameDev/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64.exe"
-$G = "D:/GithubSoftware/GameDev/ink2godot"
-
-& $GODOT --path $G res://main.tscn        # Die Watcher 主场景
-& $GODOT --path $G res://courier.tscn     # 骨骼动画角色
-& $GODOT --path $G res://vfx.tscn         # 程序化 VFX（雨 + 风）
-& $GODOT --path $G res://overview.tscn    # 七个 diorama 总览
+git clone https://github.com/CyberAnomalo/ink2godot.git
+cd ink2godot
+./setup.ps1
 ```
 
-抓图（`--headless` 用的是 dummy 渲染器，出不了图，必须窗口模式）：
+`setup.ps1` checks your toolchain, locates Godot, rebuilds the import cache if needed, and then
+**actually renders an image** as proof — from clone to first render measured at **25–55 s**.
+
+No Godot on PATH? Point at one:
 
 ```powershell
-& $GODOT --path $G --rendering-driver vulkan --resolution 1280x720 res://main.tscn -- --capture
+./setup.ps1 -Godot "C:\path\to\Godot_v4.7.2-stable_win64.exe"
 ```
 
-详细命令见 `README-RUN.md`。
+Then:
 
-## 目录
+```powershell
+$G = (Get-Location).Path
+& godot --path $G res://main.tscn        # Die Watcher — hero diorama
+& godot --path $G res://courier.tscn     # rigged character, bone-driven animation
+& godot --path $G res://vfx.tscn         # procedural VFX (rain + wind)
+& godot --path $G res://overview.tscn    # all seven dioramas, auto-framed
+```
 
-| 路径 | 内容 |
+Capture a frame (`--headless` uses a dummy renderer and **cannot produce an image**):
+
+```powershell
+& godot --path $G res://main.tscn -- --capture     # -> artifacts/shot.png
+```
+
+You do **not** need Node or ink-studio for any of the above — the exported assets ship with the
+repo. That is deliberate: it means art changes go through one person (or CI), and nobody else
+needs access to a private tool to open the project.
+
+## What is actually implemented
+
+- **Static splats** — 7 ink-studio dioramas, author camera reproduced exactly.
+- **Skeletal animation** — one PLY per bone (10 bones) + baked 12-float bone matrices per frame.
+  Runs at ~0.4 ms/frame CPU with 3,920 splats.
+- **Procedural VFX** — 12 per-splat animation kinds driven entirely in the vertex shader
+  (rain fall, orbit, flap, ripple, wind sway, opacity fades…), zero per-frame CPU transfer.
+  Verified against ink-studio's own CPU solver at **exactly zero error** over 461,535 splats.
+- **Pixel-look post pass** — chunky pixels, palette constraint, ordered dither, optional outline.
+- **Automated art QA** — every rendered scene is census-checked for off-palette pixels.
+
+## Verification, not vibes
+
+| Check | Result |
 |---|---|
-| `project.godot` | Forward+ / 4.7 / Raster 后端 / `flat_alpha` / `alpha_cutoff` |
-| `main.*` | 主场景：WorldEnvironment + Compositor + GaussianSplatNode |
-| `courier.*` | 骨骼动画：10 个逐骨骼节点 + 每帧 12 浮点骨骼矩阵 |
-| `vfx.*` | 程序化 VFX：纯 shader 驱动，零 CPU 每帧传输 |
-| `overview.*` | 七个 diorama 逐个加载、按作者相机构图、抓图 |
-| `addons/gdgs/` | GDGS 的**已打补丁副本** —— 改动见 `VENDOR-PATCHES.md` |
-| `addons/inkpixel/` | 像素风后处理（compute shader + CompositorEffect） |
-| `assets/` | 导出的 splat 资产，入库保证工程自包含 |
+| Palette census across all 7 scenes | **0 off-palette pixels, 0 off-palette colours** |
+| VFX shader vs ink-studio CPU solver | **0.000e+0** max error, 461,535 splats |
+| Bone reconstruction self-check | **1.19e-7** |
+| Fresh clone → first render | 25–55 s, unattended |
 
-## 验证
+The VFX harness re-implements the GLSL line-for-line in JS and compares position, opacity and
+covariance against ink-studio's authoritative solver — catching things visual inspection cannot,
+such as a `mat3` column/row mix-up that rotates covariance *opposite* to position.
 
-| 测试 | 判据 |
+## Five things that will bite you
+
+1. **Palette byte order is reversed between the two encodings.** `world.pal` is `0xRRGGBB`
+   (red high); the per-splat colour lane is `r | g<<8 | b<<16` (red low). Getting this wrong
+   shifts the whole image warm and adds a fake outline — and it looks plausible enough to send
+   you hunting for an art bug.
+2. **Place the node at the centroid.** `Transform3D(Basis.IDENTITY, centroid)` both restores
+   world coordinates (GDGS subtracts the mean on import) and cancels GDGS's default 180° Z flip.
+3. **ink-studio's default FOV is 38°**, stored in radians — not 45°.
+4. **The post pass must be `POST_TRANSPARENT`.** Splats draw in the transparent blend pass, so a
+   fullscreen quad with `hint_screen_texture` never sees them.
+5. **Flat discs and disc radius are inversely coupled.** `flat_alpha = true` needs a *lower*
+   `alpha_cutoff` (bigger disc) or surfaces develop gaps — the opposite of the intuitive direction.
+
+## Layout
+
+| Path | Contents |
 |---|---|
-| 七场景总览 + 调色板断言 | `../art-pipeline/overview-sheet.ps1`：**零个调色板外像素** |
-| VFX 数学等价 | `node ../art-pipeline/test-vfx-math.js`：误差 `0.000e+0` |
-| 帧间运动 | `vfx.tscn --capture` 会打印时间相隔帧的平均像素差（应 > 1/255） |
+| `project.godot` | Forward+, Godot 4.7, Raster backend, `flat_alpha`, `alpha_cutoff` |
+| `main.*`, `courier.*`, `vfx.*`, `overview.*` | The four scenes |
+| `addons/gdgs/` | GDGS **with local patches** — see `VENDOR-PATCHES.md` before upgrading |
+| `addons/inkpixel/` | The pixel-look compositor effect (compute shader + GDScript) |
+| `assets/` | Exported splat assets, committed so the project is self-contained |
+| `setup.ps1` | Bootstrap: toolchain → Godot → import → render proof |
 
-## 必须知道的几件事
+## Limitations
 
-1. **调色板字节序**：`world.pal` 是 `0xRRGGBB`（红在高位），而逐 splat 的 packedRGB lane
-   是 `r | g<<8 | b<<16`（红在低位）—— **两者相反**。搞反会让冷色变暖并在轮廓上叠一圈假描边。
-2. **节点必须摆到质心**：`Transform3D(Basis.IDENTITY, centroid)` 同时恢复世界坐标并抵消
-   GDGS 默认的 180° Z 翻转。
-3. **默认 fov 是 38°**，不是 45°。
-4. **后处理必须挂 `POST_TRANSPARENT`**：Raster splat 在透明阶段绘制，
-   全屏 QuadMesh + `hint_screen_texture` 拿不到它。
-5. **平色盘要把 `alpha_cutoff` 调低**（盘变大），否则表面露缝。
+- **Windows-only scripts.** The Godot project itself is portable; `setup.ps1` and the capture
+  scripts assume PowerShell. Linux/macOS would need small shell equivalents.
+- **Raster backend only, in practice.** The pixel pass has not been validated on the Compute
+  backend; the Compute backend also requires desktop Forward+. Raster's 1–2 frame sort lag is
+  acceptable for weather but would show on fast camera work.
+- **Outline is luminance-based, not depth-based.** Splats use `depth_draw_never`, so there is no
+  depth buffer to derive silhouettes from at post-processing time.
+- **6 of 12 VFX kinds are exercised by shipped scenes.** The rest are implemented and pass the
+  numeric harness but have no authored scene.
+- **Deeper docs are in Chinese** (`SPEC-inkstudio-to-godot-ply.md` in the exporter repo,
+  `ONBOARDING.md`, `VENDOR-PATCHES.md`). The English READMEs cover the parts a newcomer needs.
 
-## 版本
+## Related
 
-见 `VENDOR-PATCHES.md`（GDGS 上游 commit 与本地改动）和 `../art-pipeline/VERSIONS.md`
-（ink-studio 固定 commit、工具链版本、关键契约锚点）。
+- [art-pipeline](https://github.com/CyberAnomalo/art-pipeline) — the exporter that produces these assets.
+- [ink-studio](https://github.com/siliconjungle/shapeshift-labs-ink-studio) — the art baker (MIT).
+- [GDGS](https://github.com/ReconWorldLab/godot-gaussian-splatting) — Gaussian splatting for Godot (MIT).
 
-## 许可
+## License
 
-- GDGS（godot-gaussian-splatting）：MIT
-- ink-studio：MIT（Copyright (c) 2026 siliconjungle）
+The project code is released under the MIT License. Vendored dependencies keep their own licenses:
+GDGS (MIT) and ink-studio (MIT, © 2026 siliconjungle).
