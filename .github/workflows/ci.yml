@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Windows runner, no GPU. So this job cannot render an image -- it validates everything
+# that does not need a real rendering device:
+#   1. Godot 4.7.x can import all 18 splat assets (GDGS importer)
+#   2. the four scenes instantiate headlessly without script/class errors
+#   3. every first-party GDScript parses
+# What it deliberately does NOT cover: the pixel-look compositor effect (needs a
+# RenderingDevice), GPU sort behaviour, and the actual look. Those need a windowed run.
+
+jobs:
+  godot:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      GODOT_VERSION: 4.7.2
+      GODOT_MIN_RES: 18
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}\godot
+          key: godot-${{ env.GODOT_VERSION }}-win64
+
+      - name: Fetch Godot ${{ env.GODOT_VERSION }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ver = $env:GODOT_VERSION
+          $dir = "$env:RUNNER_TEMP\godot"
+          $exe = "$dir\Godot_v$ver-stable_win64.exe"
+          if (Test-Path $exe) {
+            Write-Host "cached: $exe"
+          } else {
+            New-Item -ItemType Directory -Force -Path $dir | Out-Null
+            $zip = "$dir\godot.zip"
+            $url = "https://github.com/godotengine/godot/releases/download/$ver-stable/Godot_v$ver-stable_win64.exe.zip"
+            # curl -L: release assets redirect to release-assets.githubusercontent.com,
+            # and curl follows that more reliably than Invoke-WebRequest in this runner.
+            curl.exe -sSL --retry 3 --retry-delay 2 -o $zip $url
+            if ($LASTEXITCODE -ne 0) { throw "download failed: $url" }
+            Expand-Archive -Path $zip -DestinationPath $dir -Force
+          }
+          if (-not (Test-Path $exe)) { throw "Godot executable not found at $exe" }
+          & $exe --version
+          "GODOT=$exe" >> $env:GITHUB_ENV
+
+      - name: Import splat assets
+        shell: pwsh
+        run: |
+          # Godot's first bulk import of 18 Gaussian PLYs occasionally dies in its
+          # finishing phase with an access violation (0xC0000005) *after* the assets are
+          # written -- roughly 1 run in 3. So: retry, and judge success by .res files on
+          # disk rather than by the process exit code.
+          $ok = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            $out = (& $env:GODOT --headless --path . --import 2>&1 | Out-String)
+            $code = $LASTEXITCODE
+            $res = @(Get-ChildItem .godot/imported -Filter *.res -ErrorAction SilentlyContinue).Count
+            Write-Host "attempt ${attempt}: exit=0x$('{0:X8}' -f [uint32]$code) res=$res"
+            if ($res -ge $env:GODOT_MIN_RES) { $ok = $true; break }
+            $out -split "`n" | Where-Object { $_ -match 'ERROR|gdgs' } | Select-Object -First 10 | ForEach-Object { Write-Host "  $($_.Trim())" }
+            if ($attempt -eq 2) { Remove-Item .godot -Recurse -Force -ErrorAction SilentlyContinue }
+          }
+          if (-not $ok) { throw "import produced fewer than $env:GODOT_MIN_RES .res files" }
+          "res=$res" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Parse first-party scripts
+        shell: pwsh
+        run: |
+          $failed = @()
+          $scripts = @(Get-ChildItem -Path . -Filter *.gd) + @(Get-ChildItem -Path addons/inkpixel -Filter *.gd -ErrorAction SilentlyContinue)
+          foreach ($s in $scripts) {
+            $rel = (Resolve-Path -Relative $s.FullName).Replace('\', '/') -replace '^[.\\/]+', ''
+            $out = (& $env:GODOT --headless --path . --check-only --script "res://$rel" 2>&1 | Out-String)
+            if ($out -match 'Parse Error|SCRIPT ERROR') {
+              $failed += $rel
+              Write-Host "::error file=$rel::$($out.Trim())"
+            }
+          }
+          Write-Host "checked $($scripts.Count) scripts, $($failed.Count) failed"
+          if ($failed.Count) { throw "parse errors in: $($failed -join ', ')" }
+
+      - name: Headless scene smoke
+        shell: pwsh
+        run: |
+          # --quit-after N runs N frames with the dummy renderer. Enough to catch class
+          # resolution failures, broken .tscn references and _ready() exceptions -- the
+          # exact failure mode that cost hours earlier (GaussianSplatNode in a .tscn).
+          $scenes = @('main.tscn', 'courier.tscn', 'vfx.tscn', 'overview.tscn')
+          $rows = @()
+          foreach ($s in $scenes) {
+            $sw = [Diagnostics.Stopwatch]::StartNew()
+            $out = (& $env:GODOT --headless --path . "res://$s" --quit-after 90 2>&1 | Out-String)
+            $code = $LASTEXITCODE
+            $bad = @($out -split "`n" | Where-Object { $_ -match 'Cannot get class|SCRIPT ERROR|Parse Error|Failed to load|Condition "' })
+            $rows += "| $s | $code | $([math]::Round($sw.Elapsed.TotalSeconds,1))s | $($bad.Count) |"
+            if ($code -ne 0 -or $bad.Count) {
+              $bad | Select-Object -First 5 | ForEach-Object { Write-Host "  $($_.Trim())" }
+              Write-Host $out
+              throw "$s failed (exit $code, $($bad.Count) error lines)"
+            }
+          }
+          $header = @('| scene | exit | time | errors |', '|---|---|---|---|')
+          ($header + $rows) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          Write-Host "all $($scenes.Count) scenes instantiate headlessly"

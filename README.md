@@ -1,5 +1,7 @@
 # ink2godot
 
+[![CI](https://github.com/CyberAnomalo/ink2godot/actions/workflows/ci.yml/badge.svg)](https://github.com/CyberAnomalo/ink2godot/actions/workflows/ci.yml)
+
 **Rendering pixel-art Gaussian splats in Godot 4 — with no custom engine build, no C#, and no CPU per-frame uploads.**
 
 [中文](README.zh-CN.md) · [Onboarding](ONBOARDING.md) · [Run commands](README-RUN.md) · [Vendor patches](VENDOR-PATCHES.md)
