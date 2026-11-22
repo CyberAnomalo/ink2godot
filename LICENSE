@@ -19,16 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Third-party components
-
-- addons/gdgs — godot-gaussian-splatting, MIT
-  Copyright (c) ReconWorldLab
-  https://github.com/ReconWorldLab/godot-gaussian-splatting
-  Vendored with local modifications; see VENDOR-PATCHES.md.
-
-- assets/ — Gaussian splat assets baked with ink-studio, MIT
-  Copyright (c) 2026 siliconjungle
-  https://github.com/siliconjungle/shapeshift-labs-ink-studio
